@@ -291,10 +291,10 @@
   dispatch_async(_semaphoreQueue, ^{
     while (difference != 0) {
       if (difference > 0) {
-        dispatch_semaphore_signal(self->_concurrentSemaphore);
+        dispatch_semaphore_signal(_concurrentSemaphore);
         difference--;
       } else {
-        dispatch_semaphore_wait(self->_concurrentSemaphore, DISPATCH_TIME_FOREVER);
+        dispatch_semaphore_wait(_concurrentSemaphore, DISPATCH_TIME_FOREVER);
         difference++;
       }
     }
@@ -305,10 +305,16 @@
 
 - (BOOL)locked_cancelOperation:(id <PINOperationReference>)operationReference
 {
+  BOOL success = NO;
   PINOperation *operation = [_referenceToOperations objectForKey:operationReference];
-  BOOL success = [self locked_removeOperation:operation];
-  if (success) {
-    dispatch_group_leave(_group);
+  if (operation) {
+    NSMutableOrderedSet *queue = [self operationQueueWithPriority:operation.priority];
+    if ([queue containsObject:operation]) {
+      success = YES;
+      [queue removeObject:operation];
+      [_queuedOperations removeObject:operation];
+      dispatch_group_leave(_group);
+    }
   }
   return success;
 }
@@ -347,10 +353,10 @@
           for (dispatch_block_t completion in operation.completions) {
             completion();
           }
-          dispatch_group_leave(self->_group);
+          dispatch_group_leave(_group);
           
           [self lock];
-            self->_serialQueueBusy = NO;
+            _serialQueueBusy = NO;
           [self unlock];
           
           //see if there are any other operations
@@ -373,22 +379,22 @@
   }
   
   dispatch_async(_semaphoreQueue, ^{
-    dispatch_semaphore_wait(self->_concurrentSemaphore, DISPATCH_TIME_FOREVER);
+    dispatch_semaphore_wait(_concurrentSemaphore, DISPATCH_TIME_FOREVER);
     [self lock];
       PINOperation *operation = [self locked_nextOperationByPriority];
     [self unlock];
   
     if (operation) {
-      dispatch_async(self->_concurrentQueue, ^{
+      dispatch_async(_concurrentQueue, ^{
         operation.block(operation.data);
         for (dispatch_block_t completion in operation.completions) {
           completion();
         }
-        dispatch_group_leave(self->_group);
-        dispatch_semaphore_signal(self->_concurrentSemaphore);
+        dispatch_group_leave(_group);
+        dispatch_semaphore_signal(_concurrentSemaphore);
       });
     } else {
-      dispatch_semaphore_signal(self->_concurrentSemaphore);
+      dispatch_semaphore_signal(_concurrentSemaphore);
     }
   });
 }
@@ -442,20 +448,13 @@
 }
 
 //Call with lock held
-- (BOOL)locked_removeOperation:(PINOperation *)operation
+- (void)locked_removeOperation:(PINOperation *)operation
 {
   if (operation) {
     NSMutableOrderedSet *priorityQueue = [self operationQueueWithPriority:operation.priority];
-    if ([priorityQueue containsObject:operation]) {
-      [priorityQueue removeObject:operation];
-      [_queuedOperations removeObject:operation];
-      if (operation.identifier) {
-        [_identifierToOperations removeObjectForKey:operation.identifier];
-      }
-      return YES;
-    }
+    [priorityQueue removeObject:operation];
+    [_queuedOperations removeObject:operation];
   }
-  return NO;
 }
 
 - (void)lock

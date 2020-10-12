@@ -52,6 +52,3 @@ Carthage/Build
 # Bundler
 .bundle
 vendor
-
-# Example project
-Example/Pods

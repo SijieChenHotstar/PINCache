@@ -6,8 +6,8 @@
 //  Copyright © 2016 Pinterest. All rights reserved.
 //
 
-@import PINOperation;
 #import <XCTest/XCTest.h>
+#import <PINOperation/PINOperation.h>
 #import <pthread.h>
 
 static NSTimeInterval PINOperationQueueTestBlockTimeout = 20;
@@ -141,7 +141,6 @@ static const NSUInteger PINOperationQueueTestsMaxOperations = 5;
   __block NSUInteger runningOperationCount = 0;
   __block BOOL operationCountMaxedOut = NO;
   
-  XCTAssert(queue.maxConcurrentOperations == maxOperations, @"Max concurrent operations not correctly set.");
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Warc-retain-cycles"
   for (NSUInteger count = 0; count < operationCount; count++) {
@@ -155,7 +154,7 @@ static const NSUInteger PINOperationQueueTestsMaxOperations = 5;
         XCTAssert(runningOperationCount <= maxOperations, @"Running too many operations at once: %lu", (unsigned long)runningOperationCount);
       }
       
-      usleep(10000);
+      usleep(1000);
       
       @synchronized (self) {
         runningOperationCount--;
@@ -513,10 +512,10 @@ static const NSUInteger PINOperationQueueTestsMaxOperations = 5;
   PINOperationQueue *queue = [[PINOperationQueue alloc] initWithMaxConcurrentOperations:2];
   [self helperConfirmMaxOperations:2 queue:queue];
   queue.maxConcurrentOperations = 4;
-  usleep(10000);
+  usleep(1000);
   [self helperConfirmMaxOperations:4 queue:queue];
   queue.maxConcurrentOperations = 2;
-  usleep(10000);
+  usleep(1000);
   [self helperConfirmMaxOperations:2 queue:queue];
 }
 
